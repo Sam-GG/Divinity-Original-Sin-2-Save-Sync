@@ -60,7 +60,15 @@ while True:
     print("checking for new saves every 10 seconds..")
     with open('last_download.txt', 'r') as f:
         last_mod_download = f.read()
-    if DRIVE.files().get(fileId=files[0]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
+
+    # need to make sure non-folder. G Drive does not update modified time for parent folders, only files.
+    i = 0
+    some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
+    while some_file['mimeType'] == 'application/vnd.google-apps.folder':
+        i += 1
+        some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
+
+    if DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
         download_all(files, divin_folder_id)
         print('downloaded newer save')
     # elif DRIVE.files().get(fileId=divin_folder_id, fields="modifiedTime").execute()['modifiedTime'] < last_mod_download:

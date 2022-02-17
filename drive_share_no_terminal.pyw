@@ -55,7 +55,14 @@ files = DRIVE.files().list(q="'" + divin_folder_id + "' in parents").execute().g
 while True:
     with open('last_download.txt', 'r') as f:
         last_mod_download = f.read()
-    if DRIVE.files().get(fileId=files[0]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
+        
+    i = 0
+    some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
+    while some_file['mimeType'] == 'application/vnd.google-apps.folder':
+        i += 1
+        some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
+    
+    if DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
         download_all(files, divin_folder_id)
     time.sleep(10)
 
