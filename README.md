@@ -54,14 +54,15 @@
 - **path.txt** should contain the path to the save file you are syncing.
 - For instance mine contains ```C:\Users\Sam\Documents\Larian Studios\Divinity Original Sin 2 Definitive Edition\PlayerProfiles\BigManGang\Savegames\Story\MainSave\```
 Where \MainSave\ is the directory that contains the two relevant save files. **In the current version of the app, the name is require to be consistent with the name that is present on google drive. Divinity dyanmically chooses names based on location and time, so whenever any of us ends a session, we manually save over the "MainSave" so that it remains the same.**
+- Replace the path file that is arleady in there
 - There should also be a file called **folder_id.txt**. This should contain the id of the shared drive folder.
-- This can be found in the URL when you visit the folder in Google Drive
+- This can be found in the URL when you visit the folder in Google Drive, replace the id that's already in the file
 
 ![drive folder id](https://user-images.githubusercontent.com/48575634/156900554-18841bf1-5465-4da8-ad47-f2261f2345f8.PNG)
 
 **Make sure everyone has edit access to the folder**
 
-Now, The next time you run drive_share.py it should continuosly check for updated saves, downloading them when necessary.
+Now, The next time you run drive_share.py it should continuously check for updated saves, downloading them when necessary.
 You can also run drive_share_no_terminal.py for a version that runs in the background. While running you should python process in task manager consuming around 20-30mb, this is likely that. I personally set this to run on startup, so I never need to think about opening it.
 
 ## Uploading Saves
