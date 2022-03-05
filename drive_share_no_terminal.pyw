@@ -5,6 +5,7 @@ import io
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 import time
 from datetime import datetime
+global DRIVE
 
 with open('path.txt', 'r') as f:
     path = f.read()
@@ -17,14 +18,17 @@ if path[-1] == '\n':
 if path[-1] != '/':
     path += '/'
 
-#Auth and DRIVE service setup
-SCOPES = ['https://www.googleapis.com/auth/drive']
-store = file.Storage('storage.json')
-creds = store.get()
-if not creds or creds.invalid:
-    flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
-    creds = tools.run_flow(flow, store)
-DRIVE = discovery.build('drive', 'v3', http=creds.authorize(Http()))
+def auth():
+    """
+        summary: Authenticates with Google Drive and returns a Drive service object.
+    """
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    store = file.Storage('storage.json')
+    creds = store.get()
+    if not creds or creds.invalid:
+        flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
+        creds = tools.run_flow(flow, store)
+    return discovery.build('drive', 'v3', http=creds.authorize(Http()))
 
 
 # Helper functions
@@ -44,7 +48,11 @@ def download_all(files, folder_id):
             with open('last_download.txt', 'w') as f:
                 f.write(str(DRIVE.files().get(fileId=files[0]['id'], fields="modifiedTime").execute()['modifiedTime']))
 
-divin_folder_id = '19c_E1naS7KQ_JE0RfBKXq-8srxaB13GZ'
+# perform auth and get drive service object
+DRIVE = auth()                
+
+with open('folder_id.txt', 'r') as f:
+    divin_folder_id = f.read()
 
 # save folder metadata
 divin_folder = DRIVE.files().get(fileId='19c_E1naS7KQ_JE0RfBKXq-8srxaB13GZ').execute()
@@ -53,16 +61,20 @@ divin_folder = DRIVE.files().get(fileId='19c_E1naS7KQ_JE0RfBKXq-8srxaB13GZ').exe
 files = DRIVE.files().list(q="'" + divin_folder_id + "' in parents").execute().get('files', [])
 
 while True:
-    with open('last_download.txt', 'r') as f:
-        last_mod_download = f.read()
-        
-    i = 0
-    some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
-    while some_file['mimeType'] == 'application/vnd.google-apps.folder':
-        i += 1
+    try:
+        with open('last_download.txt', 'r') as f:
+            last_mod_download = f.read()
+            
+        i = 0
         some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
-    
-    if DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
-        download_all(files, divin_folder_id)
+        while some_file['mimeType'] == 'application/vnd.google-apps.folder':
+            i += 1
+            some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
+        
+        if DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
+            download_all(files, divin_folder_id)
+    except:
+        DRIVE = auth()
+
     time.sleep(10)
 

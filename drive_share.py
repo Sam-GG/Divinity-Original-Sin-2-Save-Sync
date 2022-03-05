@@ -5,6 +5,7 @@ import io
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 import time
 from datetime import datetime
+global DRIVE
 
 print("Checking path")
 with open('path.txt', 'r') as f:
@@ -19,15 +20,19 @@ if path[-1] == '\n':
 if path[-1] != '/':
     path += '/'
 
-print("performing auth setup")
-#Auth and DRIVE service setup
-SCOPES = ['https://www.googleapis.com/auth/drive']
-store = file.Storage('storage.json')
-creds = store.get()
-if not creds or creds.invalid:
-    flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
-    creds = tools.run_flow(flow, store)
-DRIVE = discovery.build('drive', 'v3', http=creds.authorize(Http()))
+
+def auth():
+    """
+        summary: Authenticates with Google Drive and returns a Drive service object.
+    """
+    print("performing auth setup")
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    store = file.Storage('storage.json')
+    creds = store.get()
+    if not creds or creds.invalid:
+        flow = client.flow_from_clientsecrets('client_secret.json', SCOPES)
+        creds = tools.run_flow(flow, store)
+    return discovery.build('drive', 'v3', http=creds.authorize(Http()))
 
 
 # Helper functions
@@ -39,7 +44,6 @@ def download_file(id, filename):
     while done is False:
         status, done = downloader.next_chunk()
         print("Download %d%%." % int(status.progress() * 100))
-        time.sleep(2)
 
 def download_all(files, folder_id):
     for f in files:
@@ -48,7 +52,15 @@ def download_all(files, folder_id):
             with open('last_download.txt', 'w') as f:
                 f.write(str(DRIVE.files().get(fileId=files[0]['id'], fields="modifiedTime").execute()['modifiedTime']))
 
-divin_folder_id = '19c_E1naS7KQ_JE0RfBKXq-8srxaB13GZ'
+
+# perform auth and get drive service object
+DRIVE = auth()
+
+# folder id's can be found in the url of the drive folder webpage
+print("Checking folder id")
+with open('folder_id.txt', 'r') as f:
+    divin_folder_id = f.read()
+print("Folder id: " + divin_folder_id)
 
 # save folder metadata
 divin_folder = DRIVE.files().get(fileId='19c_E1naS7KQ_JE0RfBKXq-8srxaB13GZ').execute()
@@ -58,23 +70,30 @@ files = DRIVE.files().list(q="'" + divin_folder_id + "' in parents").execute().g
 
 while True:
     print("checking for new saves every 10 seconds..")
-    with open('last_download.txt', 'r') as f:
-        last_mod_download = f.read()
+    try:
+        with open('last_download.txt', 'r') as f:
+            last_mod_download = f.read()
 
-    # need to make sure non-folder. G Drive does not update modified time for parent folders, only files.
-    i = 0
-    some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
-    while some_file['mimeType'] == 'application/vnd.google-apps.folder':
-        i += 1
+        # need to make sure non-folder. G Drive does not update modified time for parent folders, only files.
+        i = 0
         some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
 
-    if DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
-        download_all(files, divin_folder_id)
-        print('downloaded newer save')
-    # elif DRIVE.files().get(fileId=divin_folder_id, fields="modifiedTime").execute()['modifiedTime'] < last_mod_download:
-    #     update_all(files)
-    #     print('uploaded newer save') 
-    else:
-        print('no changes')
+        while some_file['mimeType'] == 'application/vnd.google-apps.folder':
+            i += 1
+            some_file = DRIVE.files().get(fileId=files[i]['id']).execute()
+
+        print(DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'])
+        if DRIVE.files().get(fileId=files[i]['id'], fields="modifiedTime").execute()['modifiedTime'] > last_mod_download:
+            download_all(files, divin_folder_id)
+            print('downloaded newer save')
+        # elif DRIVE.files().get(fileId=divin_folder_id, fields="modifiedTime").execute()['modifiedTime'] < last_mod_download:
+        #     update_all(files)
+        #     print('uploaded newer save') 
+        else:
+            print('no changes')
+    except Exception as e:
+        print(e)
+        print("attempting re-authentication")
+        DRIVE = auth()
     time.sleep(10)
 
